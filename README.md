@@ -1,10 +1,11 @@
 # Wyprawa po Polsce 🇵🇱
 
-Gra-quiz na telefon dla Gniewka (1. klasa), przygotowująca do **Konkursu wiedzy o Polsce**.
+Gra-quiz na telefon dla dzieci z klas 1–3, przygotowująca do **Konkursu wiedzy o Polsce**.
 
 **Zagraj:** https://kabbena.github.io/konkurs-wiedzy-o-polsce/
 
 ## Co jest w grze
+- Na początku rodzic wpisuje imię dziecka i wybiera chłopiec/dziewczynka (poprawne formy: „skończyłeś/skończyłaś”, „Mistrz/Mistrzyni”). Imię można zmienić w panelu rodzica.
 - 7 przystanków zgodnych z zakresem konkursu: Symbole, Mapa Polski, Legendy i historia, Wybitni Polacy, Tradycje, Przyroda, Ważne miejsca + **Wielki Finał** (10 pytań ze wszystkiego) z dyplomem.
 - 114 pytań w 6 formach: obrazki, Tak/Nie, dotknij na mapie Polski, mapa Europy, połącz w pary, ułóż po kolei.
 - Karty „Poznaj” przed pierwszą rundą każdego przystanku.

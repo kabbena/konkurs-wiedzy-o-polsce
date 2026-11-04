@@ -19,7 +19,14 @@ function check(c, msg) { if (!c) { fail.push(msg); log('FAIL:', msg); } }
     // horizontal overflow check helper
     const noOverflow = async (where) => { const o = await T(() => document.documentElement.scrollWidth - window.innerWidth); check(o <= 1, `${dev}: overflow ${o}px on ${where}`); };
 
-    await p.click('#start'); await noOverflow('map');
+    await p.click('#start');
+    check(/Wpisz imię/.test(await p.locator('#err').innerText()), `${dev}: empty name error`);
+    check(await p.locator('#nm').count() === 1, `${dev}: stays on name screen`);
+    await p.fill('#nm', 'Gniewko'); await p.click('#start');
+    check(/chłopiec czy dziewczynka/.test(await p.locator('#err').innerText()), `${dev}: sex error`);
+    await p.click('[data-sex=m]'); await p.click('#start');
+    check(await p.locator('.hello').innerText() === 'Cześć, Gniewko!', `${dev}: greeting with name`);
+    await noOverflow('map');
     check(await p.locator('.node.locked').count() === 7, `${dev}: 7 locked at start`);
 
     async function answer(correct) {
@@ -74,6 +81,7 @@ function check(c, msg) { if (!c) { fail.push(msg); log('FAIL:', msg); } }
         await p.reload();
         check(await p.locator('#cont').count() === 1, `${dev}: resume dialog shown`);
         const txt = await p.locator('.sheet').innerText();
+        check(/Skończyłeś tutaj/.test(txt), `${dev}: masculine form`);
         check(/pytanie 3 z 5/.test(txt), `${dev}: resume text says question 3: ${txt}`);
         await p.click('#cont');
         const after = await T(() => ({ i: __T.S.st.s3.pending.i, id: __T.Q.q.id }));
@@ -106,7 +114,7 @@ function check(c, msg) { if (!c) { fail.push(msg); log('FAIL:', msg); } }
     const fn = await playRound(false);
     check(fn === 10, `${dev}: final has 10 questions (${fn})`);
     await p.screenshot({ path: `${OUT}/t_${dev.replace(' ', '')}_final_end.png` });
-    await p.click('#dip'); check(await p.locator('.dip .who').innerText() === 'Gniewka', `${dev}: diploma name`);
+    await p.click('#dip'); check(await p.locator('.dip .who').innerText() === 'Gniewko', `${dev}: diploma name`);
     await p.screenshot({ path: `${OUT}/t_${dev.replace(' ', '')}_diploma.png` });
     await p.click('#home'); await p.click('#alb');
     check(await p.locator('.album .cell.gold').count() === 8, `${dev}: 8 gold stickers (${await p.locator('.album .cell.gold').count()})`);
@@ -130,6 +138,31 @@ function check(c, msg) { if (!c) { fail.push(msg); log('FAIL:', msg); } }
     await p.click('.speak');
     check(errs.length === 0, `${dev}: page errors: ${errs.join(' | ')}`);
     log(dev, 'done, stars', stars, 'errors', errs.length);
+    await ctx.close();
+  }
+  { // girl, name editing and migration of old saves without a name
+    const ctx = await b.newContext({ ...devices['Pixel 7'] }); await ctx.route(/fonts\./, r => r.abort());
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+    await p.goto(URL);
+    await p.fill('#nm', '  zosia  '); await p.click('[data-sex=f]'); await p.click('#start');
+    check(await p.locator('.hello').innerText() === 'Cześć, Zosia!', 'girl: greeting capitalised');
+    await p.click('.node[data-sid=s1]'); while (await p.locator('.learn').count()) await p.click('#nx');
+    await p.reload();
+    check(/Skończyłaś tutaj/.test(await p.locator('.sheet').innerText()), 'girl: feminine resume text');
+    await p.click('#tomap');
+    await p.click('#par'); const qt = await p.locator('.sheet .qsub').innerText(); const [x, y] = qt.match(/(\d+) × (\d+)/).slice(1).map(Number);
+    await p.click(`[data-v="${x * y}"]`); await p.click('#name');
+    check(await p.inputValue('#nm') === 'Zosia', 'edit: name prefilled');
+    await p.fill('#nm', 'Ola'); await p.click('#start');
+    check(await p.locator('.par').count() === 1 && /Ola/.test(await p.locator('#name').innerText()), 'edit: back to parent with new name');
+    // old save (no name) keeps progress and asks for the name
+    await p.evaluate(() => { const S = JSON.parse(localStorage.getItem('gniewko-polska-v1')); delete S.name; delete S.sex; S.stars = 42; localStorage.setItem('gniewko-polska-v1', JSON.stringify(S)); });
+    await p.reload();
+    check(await p.locator('#nm').count() === 1, 'migration: asks for name');
+    await p.fill('#nm', 'Gniewko'); await p.click('[data-sex=m]'); await p.click('#start');
+    check(/42/.test(await p.locator('.pill').innerText()), 'migration: stars kept');
+    check(errs.length === 0, 'girl test errors: ' + errs.join('|'));
+    await p.screenshot({ path: `${OUT}/t_girl_map.png` });
     await ctx.close();
   }
   await b.close();

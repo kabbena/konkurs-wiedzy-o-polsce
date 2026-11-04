@@ -1,5 +1,6 @@
 'use strict';
-const NAME = 'Gniewko';
+const nm = () => esc(S.name || '');
+const g = (m, f) => S.sex === 'f' ? f : m;
 const KEY = 'gniewko-polska-v1';
 const ROUND = 5, FINAL_N = 10;
 const $app = document.getElementById('app');
@@ -211,15 +212,33 @@ function sheet(cls, html, veil) {
 }
 
 /* ---------------- screens ---------------- */
-function rIntro() {
+function rIntro(c) {
+  const edit = !!(c && c.edit), sex = S.sex || '';
   const el = screen(`<div class="intro">
     <div class="logo">${emblem('pl')}</div>
-    <h1>Cześć, ${NAME}! 👋</h1>
-    <div class="row" style="align-items:center"><p>Wyruszamy w podróż po Polsce! Odpowiadaj na pytania i zbieraj naklejki.</p>${spk()}</div>
-    <p class="qsub">Kliknij 🔊, a przeczytam Ci na głos.</p>
-    <button class="big" id="start">Start ▶</button></div>`);
-  bindSpeak(el, `Cześć, ${NAME}! Wyruszamy w podróż po Polsce! Odpowiadaj na pytania i zbieraj naklejki. Kliknij głośnik, a przeczytam ci na głos.`);
-  el.querySelector('#start').onclick = () => { beep('tap'); go({ scr: 'map' }); };
+    <h1>Cześć! 👋</h1>
+    <div class="row" style="align-items:center"><p>Wyruszamy w podróż po Polsce!</p>${spk()}</div>
+    <div class="namebox"><label for="nm">Jak masz na imię?</label>
+      <input id="nm" type="text" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Imię" value="${nm()}">
+      <div class="sexrow"><button class="opt ${sex === 'm' ? 'sel' : ''}" data-sex="m"><span class="em">👦</span>Chłopiec</button><button class="opt ${sex === 'f' ? 'sel' : ''}" data-sex="f"><span class="em">👧</span>Dziewczynka</button></div>
+      <div class="err" id="err" role="alert"></div></div>
+    <button class="big" id="start">${edit ? 'Zapisz ✓' : 'Start ▶'}</button>
+    <p class="qsub">Imię wpisuje rodzic. Kliknij 🔊, a przeczytam na głos.</p></div>`);
+  bindSpeak(el, 'Cześć! Wyruszamy w podróż po Polsce! Odpowiadaj na pytania i zbieraj naklejki. Jak masz na imię? Poproś rodzica, żeby wpisał twoje imię.');
+  const inp = el.querySelector('#nm'), err = el.querySelector('#err');
+  let pickSex = sex;
+  inp.oninput = () => { err.textContent = ''; };
+  el.querySelectorAll('[data-sex]').forEach(b => b.onclick = () => {
+    pickSex = b.dataset.sex; err.textContent = ''; beep('tap');
+    el.querySelectorAll('[data-sex]').forEach(x => x.classList.toggle('sel', x === b));
+  });
+  el.querySelector('#start').onclick = () => {
+    let v = inp.value.replace(/\s+/g, ' ').trim();
+    if (!v) { err.textContent = 'Wpisz imię 🙂'; inp.focus(); beep('bad'); return; }
+    if (!pickSex) { err.textContent = 'Wybierz: chłopiec czy dziewczynka'; beep('bad'); return; }
+    S.name = v.charAt(0).toUpperCase() + v.slice(1); S.sex = pickSex;
+    beep('tap'); go({ scr: edit ? 'parent' : 'map' });
+  };
 }
 
 const POS = [50, 24, 72, 30, 74, 28, 70, 50];
@@ -236,7 +255,7 @@ function rMap() {
       <span class="disc" style="background:${s.color}">${s.vis ? vis(s.vis) : s.icon}${!open ? '<span class="badge">🔒</span>' : gold ? '<span class="badge">👑</span>' : pend ? '<span class="badge">⏸️</span>' : ''}</span>
       <span class="lbl">${esc(s.name)}</span><span class="stars">${stars}</span></button>`;
   }).join('');
-  const el = screen(`<div class="top"><span class="hello grow">Cześć, ${NAME}!</span><span class="pill">⭐ ${S.stars}</span><button class="ibtn" id="alb" aria-label="Album naklejek">📒</button></div>
+  const el = screen(`<div class="top"><span class="hello grow">Cześć, ${nm()}!</span><span class="pill">⭐ ${S.stars}</span><button class="ibtn" id="alb" aria-label="Album naklejek">📒</button></div>
     <div class="trail" style="height:${h}px"><svg class="line" viewBox="0 0 100 ${h}" preserveAspectRatio="none"><path d="${line}" fill="none" stroke="var(--line)" stroke-width="8" stroke-dasharray="2 14" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>${nodes}</div>
     <div class="footer"><button class="link" id="par">Dla rodzica</button></div>`);
   el.querySelector('#alb').onclick = () => go({ scr: 'album' });
@@ -409,7 +428,7 @@ function solve(firstOk, silent) {
   save();
   if (!silent || firstOk) beep(firstOk ? 'ok' : 'bad');
   const solvedRight = firstOk || q.t === 'match' || q.t === 'order';
-  const title = ok ? `${pick(PRAISE)}, ${NAME}! 🎉` : solvedRight ? 'Udało się! 💪' : 'Nic nie szkodzi! 💪';
+  const title = ok ? `${pick(PRAISE)}, ${nm()}! 🎉` : solvedRight ? 'Udało się! 💪' : 'Nic nie szkodzi! 💪';
   const pre = ok || solvedRight ? '' : 'Dobra odpowiedź świeci na zielono. ';
   const d = sheet(ok ? 'good' : 'meh', `<h3>${title}</h3><div class="fact">${spk('sm')}<span>${esc(q.f || '')}</span></div>
      <button class="big" id="next">Dalej ▶</button>`);
@@ -427,8 +446,8 @@ function finishRound(sid) {
 }
 function rEnd(c) {
   const s = stById(c.sid), isF = c.sid === 'fin';
-  const msg = c.gold ? `Złota korona! Umiesz cały przystanek „${s.name}”! 👑` : c.first ? (isF ? 'Zdobyłeś Puchar Mistrza!' : 'Nowa naklejka w albumie!') : `Dobre odpowiedzi: ${c.good} z ${c.n}`;
-  const el = screen(`<div class="end"><h2>${c.stars === 3 ? 'Wspaniale' : c.stars === 2 ? 'Brawo' : 'Dobra robota'}, ${NAME}!</h2>
+  const msg = c.gold ? `Złota korona! Umiesz cały przystanek „${s.name}”! 👑` : c.first ? (isF ? g('Zdobyłeś Puchar Mistrza!', 'Zdobyłaś Puchar Mistrzyni!') : 'Nowa naklejka w albumie!') : `Dobre odpowiedzi: ${c.good} z ${c.n}`;
+  const el = screen(`<div class="end"><h2>${c.stars === 3 ? 'Wspaniale' : c.stars === 2 ? 'Brawo' : 'Dobra robota'}, ${nm()}!</h2>
     <div class="bigstars">${[0, 1, 2].map(k => `<span class="${k < c.stars ? '' : 'off'}" style="animation-delay:${k * 0.25}s">⭐</span>`).join('')}</div>
     ${c.first || c.gold ? `<div class="stk">${c.gold ? '👑' : s.sticker}</div>` : ''}
     <div class="row" style="align-items:center"><p>${esc(msg)}</p>${spk('sm')}</div>
@@ -462,10 +481,10 @@ function rAlbum() {
 function rDiploma() {
   const d = new Date().toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
   const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="grow"></span></div>
-    <div class="dip"><div style="width:110px;margin:0 auto">${emblem('pl')}</div><h1>DYPLOM</h1><p>dla</p><div class="who">Gniewka</div>
-    <p>Mistrza Wiedzy o Polsce 🏆</p><p>Zebrane gwiazdki: ⭐ ${S.stars}</p><p style="font-size:16px;font-weight:600">${d}</p></div>
+    <div class="dip"><div style="width:110px;margin:0 auto">${emblem('pl')}</div><h1>DYPLOM</h1><p>otrzymuje</p><div class="who">${nm()}</div>
+    <p>${g('Mistrz', 'Mistrzyni')} Wiedzy o Polsce 🏆</p><p>Zebrane gwiazdki: ⭐ ${S.stars}</p><p style="font-size:16px;font-weight:600">${d}</p></div>
     <div class="row" style="align-items:center;justify-content:center">${spk()}</div>`);
-  bindSpeak(el, `Dyplom dla Gniewka. Mistrza wiedzy o Polsce! Gratulacje!`);
+  bindSpeak(el, `Dyplom otrzymuje ${S.name}. ${g('Mistrz', 'Mistrzyni')} wiedzy o Polsce! Gratulacje!`);
   el.querySelector('#home').onclick = () => go({ scr: 'map' });
   confetti(60);
 }
@@ -486,12 +505,14 @@ function rParent(c) {
   const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="hello grow">Panel rodzica</span></div>
     <div class="par"><h2>Postępy</h2>${rows}<div class="st"><b>🏆 Wielki Finał</b> <span class="small">– rozegrany ${S.fin.done}×, najlepiej ${S.fin.best}/3 ★</span></div>
     <h2>Ustawienia</h2>
+    <button class="tog" id="name">Imię: ${nm()} ${S.sex === 'f' ? '👧' : '👦'} <b>Zmień</b></button>
     <button class="tog" id="sfx">Dźwięki (dzyń przy odpowiedzi) <b class="${S.sfx ? 'on' : ''}">${S.sfx ? 'WŁ' : 'WYŁ'}</b></button>
     <button class="tog" id="all">Odblokuj wszystkie przystanki <b class="${S.all ? 'on' : ''}">${S.all ? 'WŁ' : 'WYŁ'}</b></button>
     <p class="small">Lektor: dziecko klika 🔊 przy pytaniu, karcie lub podpowiedzi. Postęp zapisuje się sam w tym telefonie i przeglądarce – po zamknięciu gra wraca do tego samego miejsca.</p>
     <p class="small">Każda runda to 5 pytań (finał: 10). Pytania z błędem wracają w następnych rundach. Złota korona 👑 = wszystkie pytania z przystanku zaliczone za pierwszym razem.</p>
     <button class="big danger" id="reset" style="margin-top:10px">Zacznij od nowa</button></div>`);
   el.querySelector('#home').onclick = () => go({ scr: 'map' });
+  el.querySelector('#name').onclick = () => go({ scr: 'intro', edit: true });
   el.querySelector('#sfx').onclick = () => { S.sfx = !S.sfx; save(); render(); };
   el.querySelector('#all').onclick = () => { S.all = !S.all; save(); render(); };
   el.querySelector('#reset').onclick = () => {
@@ -503,6 +524,7 @@ function rParent(c) {
 
 /* ---------------- start ---------------- */
 function boot() {
+  if (!S.name || !S.sex) { S.cur = { scr: 'intro' }; return render(); }
   const c = S.cur || { scr: 'map' };
   if (c.scr === 'quiz' || c.scr === 'learn') {
     const s = stById(c.sid);
@@ -510,16 +532,16 @@ function boot() {
     const r = roundOf(c.sid);
     const where = c.scr === 'quiz' && r ? `pytanie ${Math.min(r.i + (r.solved ? 2 : 1), r.ids.length)} z ${r.ids.length}` : 'karty „Poznaj”';
     S.cur = { scr: 'map' }; render();
-    const d = sheet('neu', `<h3>Witaj z powrotem, ${NAME}! 👋</h3><div class="fact">${spk('sm')}<span>Skończyłeś tutaj: ${s.icon} ${esc(s.name)}, ${where}.</span></div>
+    const d = sheet('neu', `<h3>Witaj z powrotem, ${nm()}! 👋</h3><div class="fact">${spk('sm')}<span>${g('Skończyłeś', 'Skończyłaś')} tutaj: ${s.icon} ${esc(s.name)}, ${where}.</span></div>
       <div class="list"><button class="big" id="cont">▶ Graj dalej</button><button class="big alt" id="tomap">🗺️ Mapa</button></div>`, true);
-    bindSpeak(d, `Witaj z powrotem, ${NAME}! Skończyłeś tutaj: ${s.name}.`);
+    bindSpeak(d, `Witaj z powrotem, ${S.name}! ${g('Skończyłeś', 'Skończyłaś')} tutaj: ${s.name}.`);
     d.querySelector('#cont').onclick = () => go(c);
     d.querySelector('#tomap').onclick = () => { closeSheet(); save(); };
     return;
   }
   if (c.scr === 'end' || c.scr === 'parent') S.cur = { scr: 'map' };
   render();
-  if (S.cur.scr === 'map' && S.stars > 0) toast(`Witaj z powrotem, ${NAME}! 👋`);
+  if (S.cur.scr === 'map' && S.stars > 0) toast(`Witaj z powrotem, ${S.name}! 👋`);
 }
 window.__T = { get S() { return S; }, get Q() { return Q; }, QMAP, STATIONS, reset() { S = fresh(); save(); } };
 boot();
