@@ -13,6 +13,7 @@ Gra-quiz na telefon dla dzieci z klas 1–3, przygotowująca do **Konkursu wiedz
 - Rundy po 5 pytań, bez zegara i bez „żyć”. Po błędzie podpowiedź i druga próba; pytania z błędem wracają.
 - Postęp zapisuje się automatycznie w przeglądarce telefonu – gra wraca dokładnie tam, gdzie dziecko skończyło.
 - Panel rodzica (link „Dla rodzica” na mapie, zabezpieczony mnożeniem): postępy, pytania do powtórki, dźwięki, odblokowanie, reset.
+- Przycisk „🔄 Nowa gra” na dole mapy: usuwa imię i wszystkie postępy (po potwierdzeniu mnożeniem przez rodzica).
 
 ## Pliki
 - `index.html` – gotowa gra (jeden plik, działa też offline po zapisaniu).

@@ -1067,9 +1067,10 @@ function rMap() {
   const el = screen(`<div class="top"><span class="hello grow">Cześć, ${nm()}!</span><span class="pill">⭐ ${S.stars}</span><button class="ibtn" id="alb" aria-label="Album naklejek">📒</button></div>
     <div class="lvtabs">${tabs}</div>
     <div class="trail" style="height:${h}px"><svg class="line" viewBox="0 0 100 ${h}" preserveAspectRatio="none"><path d="${line}" fill="none" stroke="var(--line)" stroke-width="8" stroke-dasharray="2 14" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>${nodes}</div>
-    <div class="footer"><button class="link" id="par">Dla rodzica</button></div>`);
+    <div class="footer"><button class="link" id="par">Dla rodzica</button><button class="link" id="rst">🔄 Nowa gra</button></div>`);
   el.querySelector('#alb').onclick = () => go({ scr: 'album' });
   el.querySelector('#par').onclick = parentGate;
+  el.querySelector('#rst').onclick = resetGame;
   el.querySelectorAll('.lvtab').forEach(b => b.onclick = () => {
     const l = +b.dataset.lv;
     if (!lvUnlocked(l)) { beep('bad'); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 450); toast(`Poziom ${l} otworzy się po Wielkim Finale poziomu ${l - 1} 🏆`); return; }
@@ -1314,6 +1315,18 @@ function rDiploma(c) {
 }
 
 /* ---------------- parent ---------------- */
+function resetGame() {
+  const a = 6 + Math.floor(Math.random() * 4), b = 6 + Math.floor(Math.random() * 4), ok = a * b;
+  const opts = shuffle([ok, ok + a, ok - b, ok + 10]);
+  const d = sheet('neu', `<h3>Nowa gra</h3><p class="qsub" style="margin:0 0 6px">Usunie imię (${nm()}) i wszystkie postępy: gwiazdki, naklejki i dyplomy ze wszystkich poziomów.</p>
+    <p style="margin:0;font-weight:800">Dla rodzica: ile to ${a} × ${b}?</p><div class="gate">${opts.map(v => `<button class="big alt" data-v="${v}">${v}</button>`).join('')}</div>
+    <button class="big alt" id="no" style="margin-top:12px">Anuluj</button>`, true);
+  d.querySelectorAll('[data-v]').forEach(x => x.onclick = () => {
+    if (+x.dataset.v !== ok) { closeSheet(); toast('Nic nie zostało usunięte 🙂'); return; }
+    S = fresh(); save(); go({ scr: 'intro' }); toast('Gotowe – nowa gra');
+  });
+  d.querySelector('#no').onclick = closeSheet;
+}
 function parentGate() {
   const a = 6 + Math.floor(Math.random() * 4), b = 6 + Math.floor(Math.random() * 4), ok = a * b;
   const opts = shuffle([ok, ok + a, ok - b, ok + 10]);
@@ -1338,13 +1351,13 @@ function rParent(c) {
     <button class="tog" id="all">Odblokuj wszystkie przystanki i poziomy <b class="${S.all ? 'on' : ''}">${S.all ? 'WŁ' : 'WYŁ'}</b></button>
     <p class="small">Lektor: dziecko klika 🔊 przy pytaniu, karcie lub podpowiedzi. Postęp zapisuje się sam w tym telefonie i przeglądarce – po zamknięciu gra wraca do tego samego miejsca.</p>
     <p class="small">Każda runda to 5 pytań (finał: 10). Pytania z błędem wracają w następnych rundach. Złota korona 👑 = wszystkie pytania z przystanku zaliczone za pierwszym razem. Poziom 2 i 3 otwierają się po Wielkim Finale poprzedniego poziomu.</p>
-    <button class="big danger" id="reset" style="margin-top:10px">Zacznij od nowa</button></div>`);
+    <button class="big danger" id="reset" style="margin-top:10px">Usuń imię i postępy (nowa gra)</button></div>`);
   el.querySelector('#home').onclick = () => go({ scr: 'map' });
   el.querySelector('#name').onclick = () => go({ scr: 'intro', edit: true });
   el.querySelector('#sfx').onclick = () => { S.sfx = !S.sfx; save(); render(); };
   el.querySelector('#all').onclick = () => { S.all = !S.all; save(); render(); };
   el.querySelector('#reset').onclick = () => {
-    const d = sheet('neu', `<h3>Na pewno?</h3><p class="qsub">Wszystkie gwiazdki i naklejki zostaną usunięte.</p><div class="list"><button class="big danger" id="yes">Tak, usuń</button><button class="big alt" id="no">Anuluj</button></div>`, true);
+    const d = sheet('neu', `<h3>Na pewno?</h3><p class="qsub">Imię oraz wszystkie gwiazdki, naklejki i dyplomy zostaną usunięte.</p><div class="list"><button class="big danger" id="yes">Tak, usuń</button><button class="big alt" id="no">Anuluj</button></div>`, true);
     d.querySelector('#yes').onclick = () => { S = fresh(); save(); go({ scr: 'intro' }); };
     d.querySelector('#no').onclick = closeSheet;
   };
