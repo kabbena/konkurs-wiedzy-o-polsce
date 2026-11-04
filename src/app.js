@@ -9,8 +9,23 @@ const $app = document.getElementById('app');
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const QMAP = {}; STATIONS.forEach(s => s.q.forEach(q => QMAP[q.id] = { q, sid: s.id }));
-const stById = id => id === 'fin' ? FINAL : STATIONS.find(s => s.id === id);
+/* level-aware station keys: 's1' (poziom 1), 's1@2', 's1@3', 'fin', 'fin@2' … */
+const LV = k => +(String(k).split('@')[1] || 1);
+const BASE = k => String(k).split('@')[0];
+const kk = (base, lv) => lv > 1 ? base + '@' + lv : base;
+const LVN = [1, 2, 3], LVMEDAL = ['', '🥉', '🥈', '🥇'];
+const _st = {};
+function stById(k) {
+  if (_st[k]) return _st[k];
+  const b = BASE(k), lv = LV(k);
+  if (!LVN.includes(lv)) return null;
+  if (b === 'fin') return (_st[k] = { ...FINAL, id: k, lv });
+  const s0 = STATIONS.find(s => s.id === b);
+  if (!s0 || (lv > 1 && !(LEVELS[lv] && LEVELS[lv][b]))) return null;
+  return (_st[k] = lv === 1 ? { ...s0, lv } : { ...s0, id: k, lv, cards: LEVELS[lv][b].cards, q: LEVELS[lv][b].q });
+}
+const lvStations = lv => STATIONS.map(s => stById(kk(s.id, lv)));
+const QMAP = {}; LVN.forEach(lv => lvStations(lv).forEach(s => s.q.forEach(q => QMAP[q.id] = { q, sid: s.id })));
 
 /* option string → {e, x, say, vis} */
 function opt(str) {
@@ -86,6 +101,7 @@ function euMap(cands, keys) {
   const g = GEO.eu;
   let s = `<svg viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="mapa Europy"><rect width="${g.w}" height="${g.h}" fill="var(--sea)"/>
    <path d="${g.other}" fill="var(--neigh)" stroke="#a89f8a" stroke-width=".8"/>`;
+  Object.keys(g.cand).filter(c => !cands.includes(c)).forEach(c => { s += `<path d="${g.cand[c]}" fill="var(--neigh)" stroke="#a89f8a" stroke-width=".8"/>`; });
   cands.forEach((c, i) => { s += `<g class="cty" data-k="${keys[i]}"><path d="${g.cand[c]}"/></g>`; });
   return s + '</svg>';
 }
@@ -99,20 +115,24 @@ function vis(key) {
 }
 
 /* ---------------- state ---------------- */
-function fresh() { return { v: 1, stars: 0, st: {}, fin: { best: 0, done: 0, pending: null }, cur: { scr: 'intro' }, sfx: true, all: false }; }
+function fresh() { return { v: 1, stars: 0, st: {}, fin: { best: 0, done: 0, pending: null }, cur: { scr: 'intro' }, sfx: true, all: false, lv: 1, fins: {} }; }
 function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v === 1) return s; } catch (e) { } return null; }
 let S = load() || fresh();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
 function stS(id) { return S.st[id] || (S.st[id] = { rounds: 0, best: 0, known: [], wrong: [], seen: [], learned: false, pending: null }); }
-const roundOf = sid => sid === 'fin' ? S.fin.pending : stS(sid).pending;
-const setRound = (sid, r) => { if (sid === 'fin') S.fin.pending = r; else stS(sid).pending = r; };
-const unlocked = i => S.all || i === 0 || stS(STATIONS[i - 1].id).rounds > 0;
-const finalUnlocked = () => S.all || STATIONS.every(s => stS(s.id).rounds > 0);
+const isFin = k => BASE(k) === 'fin';
+function finS(k) { const lv = LV(k); if (lv === 1) return S.fin; S.fins = S.fins || {}; return S.fins[lv] || (S.fins[lv] = { best: 0, done: 0, pending: null }); }
+const roundOf = sid => isFin(sid) ? finS(sid).pending : stS(sid).pending;
+const setRound = (sid, r) => { if (isFin(sid)) finS(sid).pending = r; else stS(sid).pending = r; };
+const lvUnlocked = lv => lv === 1 || S.all || finS(kk('fin', lv - 1)).done > 0;
+const unlocked = (i, lv) => lvUnlocked(lv) && (S.all || i === 0 || stS(kk(STATIONS[i - 1].id, lv)).rounds > 0);
+const finalUnlocked = lv => lvUnlocked(lv) && (S.all || STATIONS.every(s => stS(kk(s.id, lv)).rounds > 0));
 const mastered = sid => { const s = stById(sid); return s.q.every(q => stS(sid).known.includes(q.id)); };
-function nextSid() {
-  for (const s of STATIONS) if (stS(s.id).pending) return s.id;
-  for (let i = 0; i < STATIONS.length; i++) if (unlocked(i) && stS(STATIONS[i].id).rounds === 0) return STATIONS[i].id;
-  if (finalUnlocked() && !S.fin.done) return 'fin';
+function nextSid(lv) {
+  if (!lvUnlocked(lv)) return null;
+  for (const s of STATIONS) if (stS(kk(s.id, lv)).pending) return kk(s.id, lv);
+  for (let i = 0; i < STATIONS.length; i++) if (unlocked(i, lv) && stS(kk(STATIONS[i].id, lv)).rounds === 0) return kk(STATIONS[i].id, lv);
+  if (finalUnlocked(lv) && !finS(kk('fin', lv)).done) return kk('fin', lv);
   return null;
 }
 
@@ -134,10 +154,11 @@ function buildList(qs, st, n) {
 }
 function newRound(sid) {
   let ids;
-  if (sid === 'fin') {
+  if (isFin(sid)) {
+    const sts = lvStations(LV(sid));
     ids = [];
-    STATIONS.forEach(s => ids.push(buildList(s.q, stS(s.id), 1)[0]));
-    const rest = shuffle(STATIONS.flatMap(s => s.q).filter(q => !ids.includes(q.id) && q.t !== 'order'));
+    sts.forEach(s => ids.push(buildList(s.q, stS(s.id), 1)[0]));
+    const rest = shuffle(sts.flatMap(s => s.q).filter(q => !ids.includes(q.id) && q.t !== 'order'));
     ids = shuffle(ids.concat(rest.slice(0, FINAL_N - ids.length).map(q => q.id)));
   } else ids = buildList(stById(sid).q, stS(sid), ROUND);
   const r = { sid, ids, i: 0, res: [], miss: false, solved: false };
@@ -146,13 +167,26 @@ function newRound(sid) {
 
 /* ---------------- speech & sound ---------------- */
 const ORD = ['', 'pierwszego', 'drugiego', 'trzeciego', 'czwartego', 'piątego', 'szóstego', 'siódmego', 'ósmego', 'dziewiątego', 'dziesiątego', 'jedenastego', 'dwunastego', 'trzynastego', 'czternastego', 'piętnastego', 'szesnastego', 'siedemnastego', 'osiemnastego', 'dziewiętnastego', 'dwudziestego', 'dwudziestego pierwszego', 'dwudziestego drugiego', 'dwudziestego trzeciego', 'dwudziestego czwartego', 'dwudziestego piątego', 'dwudziestego szóstego', 'dwudziestego siódmego', 'dwudziestego ósmego', 'dwudziestego dziewiątego', 'trzydziestego', 'trzydziestego pierwszego'];
-const YEARS = { '966': 'dziewięćset sześćdziesiątym szóstym', '1410': 'tysiąc czterysta dziesiątym', '1918': 'tysiąc dziewięćset osiemnastym', '1791': 'tysiąc siedemset dziewięćdziesiątym pierwszym' };
+const YEARS_UNUSED = { '966': 'dziewięćset sześćdziesiątym szóstym', '1410': 'tysiąc czterysta dziesiątym', '1918': 'tysiąc dziewięćset osiemnastym', '1791': 'tysiąc siedemset dziewięćdziesiątym pierwszym' };
+function yearWords(y, gen) {
+  const H = ['', 'sto', 'dwieście', 'trzysta', 'czterysta', 'pięćset', 'sześćset', 'siedemset', 'osiemset', 'dziewięćset'];
+  const U = gen ? ['', 'pierwszego', 'drugiego', 'trzeciego', 'czwartego', 'piątego', 'szóstego', 'siódmego', 'ósmego', 'dziewiątego'] : ['', 'pierwszym', 'drugim', 'trzecim', 'czwartym', 'piątym', 'szóstym', 'siódmym', 'ósmym', 'dziewiątym'];
+  const T = gen ? ['', '', 'dwudziestego', 'trzydziestego', 'czterdziestego', 'pięćdziesiątego', 'sześćdziesiątego', 'siedemdziesiątego', 'osiemdziesiątego', 'dziewięćdziesiątego'] : ['', '', 'dwudziestym', 'trzydziestym', 'czterdziestym', 'pięćdziesiątym', 'sześćdziesiątym', 'siedemdziesiątym', 'osiemdziesiątym', 'dziewięćdziesiątym'];
+  const N = gen ? ['dziesiątego', 'jedenastego', 'dwunastego', 'trzynastego', 'czternastego', 'piętnastego', 'szesnastego', 'siedemnastego', 'osiemnastego', 'dziewiętnastego'] : ['dziesiątym', 'jedenastym', 'dwunastym', 'trzynastym', 'czternastym', 'piętnastym', 'szesnastym', 'siedemnastym', 'osiemnastym', 'dziewiętnastym'];
+  const th = Math.floor(y / 1000), h = Math.floor(y / 100) % 10, r = y % 100;
+  if (!r) return String(y);
+  const w = [];
+  if (th === 1) w.push('tysiąc'); else if (th === 2) w.push('dwa tysiące');
+  if (h) w.push(H[h]);
+  if (r < 10) w.push(U[r]); else if (r < 20) w.push(N[r - 10]); else { w.push(T[Math.floor(r / 10)]); if (r % 10) w.push(U[r % 10]); }
+  return w.join(' ');
+}
 function forSpeech(t) {
   return String(t)
     .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{1F1E6}-\u{1F1FF}]/gu, '')
     .replace(/Mieszk(o|a) I\b/g, (m, e) => 'Mieszk' + e + (e === 'o' ? ' Pierwszy' : ' Pierwszego'))
     .replace(/Jan Paweł II/g, 'Jan Paweł Drugi')
-    .replace(/\bw (\d{3,4}) roku/g, (m, y) => YEARS[y] ? 'w ' + YEARS[y] + ' roku' : m)
+    .replace(/\b([wW]|[oO]d) (\d{3,4}) roku/g, (m, p, y) => p + ' ' + yearWords(+y, /^[oO]d$/.test(p)) + ' roku')
     .replace(/\b(\d{1,2}) (stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|Maja|Listopada)/g, (m, d, mo) => (ORD[+d] || d) + ' ' + mo.toLowerCase())
     .replace(/[„”"…]/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -243,34 +277,42 @@ function rIntro(c) {
 
 const POS = [50, 24, 72, 30, 74, 28, 70, 50];
 function rMap() {
-  const all = [...STATIONS, FINAL], rowH = 118, h = 70 + (all.length - 1) * rowH + 70, nx = nextSid();
+  const lv = lvUnlocked(S.lv || 1) ? (S.lv || 1) : 1; S.lv = lv;
+  const all = [...lvStations(lv), stById(kk('fin', lv))], rowH = 118, h = 70 + (all.length - 1) * rowH + 70, nx = nextSid(lv);
   let line = '';
   all.forEach((s, i) => { const x = POS[i], y = 70 + i * rowH; line += i === 0 ? `M${x},${y}` : ` C${POS[i - 1]},${y - rowH / 2} ${x},${y - rowH / 2} ${x},${y}`; });
   const nodes = all.map((s, i) => {
-    const isF = s.id === 'fin', st = isF ? null : stS(s.id), open = isF ? finalUnlocked() : unlocked(i);
-    const best = isF ? S.fin.best : st.best, gold = isF ? S.fin.done > 0 : mastered(s.id);
-    const pend = isF ? S.fin.pending : st.pending;
+    const isF = isFin(s.id), st = isF ? finS(s.id) : stS(s.id), open = isF ? finalUnlocked(lv) : unlocked(i, lv);
+    const best = st.best, gold = isF ? st.done > 0 : mastered(s.id), pend = st.pending;
     const stars = best ? '★'.repeat(best) + '☆'.repeat(3 - best) : '';
     return `<button class="node ${open ? '' : 'locked'} ${nx === s.id ? 'next' : ''}" data-sid="${s.id}" style="left:${POS[i]}%;top:${70 + i * rowH}px">
       <span class="disc" style="background:${s.color}">${s.vis ? vis(s.vis) : s.icon}${!open ? '<span class="badge">🔒</span>' : gold ? '<span class="badge">👑</span>' : pend ? '<span class="badge">⏸️</span>' : ''}</span>
       <span class="lbl">${esc(s.name)}</span><span class="stars">${stars}</span></button>`;
   }).join('');
+  const tabs = LVN.map(l => `<button class="lvtab l${l} ${l === lv ? 'on' : ''} ${lvUnlocked(l) ? '' : 'locked'}" data-lv="${l}"><span class="md">${lvUnlocked(l) ? LVMEDAL[l] : '🔒'}</span>Poziom ${l}</button>`).join('');
   const el = screen(`<div class="top"><span class="hello grow">Cześć, ${nm()}!</span><span class="pill">⭐ ${S.stars}</span><button class="ibtn" id="alb" aria-label="Album naklejek">📒</button></div>
+    <div class="lvtabs">${tabs}</div>
     <div class="trail" style="height:${h}px"><svg class="line" viewBox="0 0 100 ${h}" preserveAspectRatio="none"><path d="${line}" fill="none" stroke="var(--line)" stroke-width="8" stroke-dasharray="2 14" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>${nodes}</div>
     <div class="footer"><button class="link" id="par">Dla rodzica</button></div>`);
   el.querySelector('#alb').onclick = () => go({ scr: 'album' });
   el.querySelector('#par').onclick = parentGate;
+  el.querySelectorAll('.lvtab').forEach(b => b.onclick = () => {
+    const l = +b.dataset.lv;
+    if (!lvUnlocked(l)) { beep('bad'); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 450); toast(`Poziom ${l} otworzy się po Wielkim Finale poziomu ${l - 1} 🏆`); return; }
+    if (l !== S.lv) { beep('tap'); S.lv = l; save(); render(); window.scrollTo(0, 0); }
+  });
   el.querySelectorAll('.node').forEach(b => b.onclick = () => stationTap(b.dataset.sid, b));
   const n = el.querySelector('.node.next'); if (n && n.offsetTop > window.innerHeight - 200) setTimeout(() => n.scrollIntoView({ block: 'center', behavior: 'smooth' }), 150);
 }
 function stationTap(sid, btn) {
-  const isF = sid === 'fin', i = STATIONS.findIndex(s => s.id === sid);
-  if (isF ? !finalUnlocked() : !unlocked(i)) { beep('bad'); if (btn) { btn.classList.add('shake'); setTimeout(() => btn.classList.remove('shake'), 450); } toast(isF ? 'Finał otworzy się po wszystkich przystankach' : 'Najpierw poprzedni przystanek 🙂'); return; }
+  const isF = isFin(sid), lv = LV(sid), i = STATIONS.findIndex(s => s.id === BASE(sid));
+  if (isF ? !finalUnlocked(lv) : !unlocked(i, lv)) { beep('bad'); if (btn) { btn.classList.add('shake'); setTimeout(() => btn.classList.remove('shake'), 450); } toast(isF ? 'Finał otworzy się po wszystkich przystankach' : 'Najpierw poprzedni przystanek 🙂'); return; }
   beep('tap');
   if (!isF && !stS(sid).learned) return go({ scr: 'learn', sid, i: 0 });
   const s = stById(sid), r = roundOf(sid);
   const known = isF ? '' : `<p class="qsub" style="margin:0 0 12px">Umiesz ${stS(sid).known.length} z ${s.q.length} ${mastered(sid) ? '👑' : ''}</p>`;
-  const d = sheet('neu', `<div class="row" style="align-items:center;margin-bottom:6px"><span style="font-size:46px">${s.icon}</span><h3 style="margin:0">${esc(s.name)}</h3></div>${known}
+  const d = sheet('neu', `<div class="row" style="align-items:center;margin-bottom:6px"><span style="font-size:46px">${s.icon}</span><h3 style="margin:0">${esc(s.name)}</h3></div>
+    <p class="qsub" style="margin:0 0 4px">${LVMEDAL[lv]} Poziom ${lv}</p>${known}
     <div class="list"><button class="big" id="play">${r ? `▶ Dokończ (${Math.min(r.i + (r.solved ? 2 : 1), r.ids.length)}/${r.ids.length})` : '▶ Graj'}</button>
     ${isF ? '' : '<button class="big alt" id="learn">📖 Poznaj</button>'}</div>`, true);
   d.querySelector('#play').onclick = () => startQuiz(sid);
@@ -281,7 +323,7 @@ function startQuiz(sid) { if (!roundOf(sid)) newRound(sid); go({ scr: 'quiz', si
 function rLearn(c) {
   const s = stById(c.sid), cards = s.cards, i = Math.min(c.i || 0, cards.length - 1), cd = cards[i], last = i === cards.length - 1;
   const pic = cd.v ? vis(cd.v) : esc(cd.e);
-  const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="hello grow">${s.icon} ${esc(s.name)}</span></div>
+  const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="hello grow">${s.icon} ${esc(s.name)}</span><span class="pill">${LVMEDAL[s.lv]} ${s.lv}</span></div>
     <div class="learn"><div class="pic ${cd.v === 'map:labels' ? 'map' : ''}">${pic}</div><h2>${esc(cd.t)}</h2>
     <div class="row" style="align-items:center;text-align:left"><p>${esc(cd.s)}</p>${spk()}</div></div>
     <div class="dots" style="margin:10px 0 14px">${cards.map((_, k) => `<i class="${k <= i ? 'on' : ''}"></i>`).join('')}</div>
@@ -366,10 +408,10 @@ function showHint(h) {
 function markMiss() { Q.mistakes++; if (!Q.r.miss) { Q.r.miss = true; save(); } }
 
 function renderMatch(q, ans) {
-  const L = shuffle(q.p.map((p, k) => ({ k, x: p[0] }))), R = shuffle(q.p.map((p, k) => ({ k, e: p[1] })));
+  const L = shuffle(q.p.map((p, k) => ({ k, x: p[0] }))), R = shuffle(q.p.map((p, k) => ({ k, ...opt(p[1]) })));
   ans.innerHTML = `<div class="match"><div class="col">${L.map(o => `<button class="opt" data-side="L" data-k="${o.k}"><span>${esc(o.x)}</span></button>`).join('')}</div>
-    <div class="col">${R.map(o => `<button class="opt ${o.e[0] === '#' ? 'vis' : ''}" data-side="R" data-k="${o.k}"><span class="em">${emHTML(o.e)}</span></button>`).join('')}</div></div>
-    <p class="qsub" style="text-align:center;margin:10px 0 0">Dotknij imię, potem obrazek 👆</p>`;
+    <div class="col">${R.map(o => `<button class="opt ${o.e[0] === '#' && !o.x ? 'vis' : ''}" data-side="R" data-k="${o.k}"><span class="em">${emHTML(o.e)}</span>${o.x ? `<span class="mx">${esc(o.x)}</span>` : ''}</button>`).join('')}</div></div>
+    <p class="qsub" style="text-align:center;margin:10px 0 0">Dotknij po lewej, potem po prawej 👆</p>`;
   let sel = null, left = q.p.length;
   ans.querySelectorAll('.opt').forEach(b => b.onclick = () => {
     if (Q.done || b.classList.contains('done')) return;
@@ -436,28 +478,31 @@ function solve(firstOk, silent) {
   d.querySelector('#next').onclick = () => { beep('tap'); go({ scr: 'quiz', sid }); };
 }
 function finishRound(sid) {
-  const r = roundOf(sid), n = r.ids.length, good = r.res.filter(Boolean).length;
-  const stars = sid === 'fin' ? (good >= 9 ? 3 : good >= 6 ? 2 : 1) : (good === n ? 3 : good >= 3 ? 2 : 1);
+  const r = roundOf(sid), n = r.ids.length, good = r.res.filter(Boolean).length, isF = isFin(sid);
+  const stars = isF ? (good >= 9 ? 3 : good >= 6 ? 2 : 1) : (good === n ? 3 : good >= 3 ? 2 : 1);
   let first = false, gold = false;
-  if (sid === 'fin') { first = S.fin.done === 0; S.fin.done++; S.fin.best = Math.max(S.fin.best, stars); S.fin.pending = null; }
+  if (isF) { const f = finS(sid); first = f.done === 0; f.done++; f.best = Math.max(f.best, stars); f.pending = null; }
   else { const st = stS(sid); const wasGold = mastered(sid); first = st.rounds === 0; st.rounds++; st.best = Math.max(st.best, stars); st.pending = null; gold = !wasGold && mastered(sid); }
   S.stars += stars;
   go({ scr: 'end', sid, stars, good, n, first, gold });
 }
 function rEnd(c) {
-  const s = stById(c.sid), isF = c.sid === 'fin';
-  const msg = c.gold ? `Złota korona! Umiesz cały przystanek „${s.name}”! 👑` : c.first ? (isF ? g('Zdobyłeś Puchar Mistrza!', 'Zdobyłaś Puchar Mistrzyni!') : 'Nowa naklejka w albumie!') : `Dobre odpowiedzi: ${c.good} z ${c.n}`;
+  const s = stById(c.sid), isF = isFin(c.sid), lv = LV(c.sid), newLv = isF && c.first && lv < 3;
+  let msg = c.gold ? `Złota korona! Umiesz cały przystanek „${s.name}”! 👑` : c.first ? (isF ? g('Zdobyłeś Puchar Mistrza!', 'Zdobyłaś Puchar Mistrzyni!') : 'Nowa naklejka w albumie!') : `Dobre odpowiedzi: ${c.good} z ${c.n}`;
+  if (newLv) msg += ` Otwiera się Poziom ${lv + 1}! ${LVMEDAL[lv + 1]}`;
   const el = screen(`<div class="end"><h2>${c.stars === 3 ? 'Wspaniale' : c.stars === 2 ? 'Brawo' : 'Dobra robota'}, ${nm()}!</h2>
     <div class="bigstars">${[0, 1, 2].map(k => `<span class="${k < c.stars ? '' : 'off'}" style="animation-delay:${k * 0.25}s">⭐</span>`).join('')}</div>
     ${c.first || c.gold ? `<div class="stk">${c.gold ? '👑' : s.sticker}</div>` : ''}
     <div class="row" style="align-items:center"><p>${esc(msg)}</p>${spk('sm')}</div>
     <div class="list" style="width:100%;margin-top:10px">
-      ${isF ? '<button class="big" id="dip">📜 Mój dyplom</button>' : ''}
-      <button class="big ${isF ? 'blue' : ''}" id="map">🗺️ Mapa</button><button class="big alt" id="again">🔁 Jeszcze raz</button></div></div>`);
+      ${newLv ? `<button class="big" id="nextlv">${LVMEDAL[lv + 1]} Poziom ${lv + 1} ▶</button>` : ''}
+      ${isF ? '<button class="big blue" id="dip">📜 Mój dyplom</button>' : ''}
+      <button class="big ${isF ? 'alt' : ''}" id="map">🗺️ Mapa</button><button class="big alt" id="again">🔁 Jeszcze raz</button></div></div>`);
   bindSpeak(el, `${c.stars} gwiazdki. ${msg}`.replace('1 gwiazdki', 'Jedna gwiazdka').replace('3 gwiazdki', 'Trzy gwiazdki').replace('2 gwiazdki', 'Dwie gwiazdki'));
   el.querySelector('#map').onclick = () => go({ scr: 'map' });
   el.querySelector('#again').onclick = () => startQuiz(c.sid);
-  const dp = el.querySelector('#dip'); if (dp) dp.onclick = () => go({ scr: 'diploma' });
+  const dp = el.querySelector('#dip'); if (dp) dp.onclick = () => go({ scr: 'diploma', lv });
+  const nl = el.querySelector('#nextlv'); if (nl) nl.onclick = () => { S.lv = lv + 1; go({ scr: 'map' }); };
   beep('win'); confetti(c.stars * 25);
 }
 function confetti(n) {
@@ -469,22 +514,27 @@ function confetti(n) {
 
 /* ---------------- album, diploma ---------------- */
 function rAlbum() {
-  const cells = [...STATIONS, FINAL].map(s => {
-    const isF = s.id === 'fin', has = isF ? S.fin.done > 0 : stS(s.id).rounds > 0, gold = isF ? S.fin.best === 3 : mastered(s.id);
-    return `<div class="cell ${has ? '' : 'no'} ${has && gold ? 'gold' : ''}"><div class="e">${has ? s.sticker : '❔'}</div><div class="n">${esc(s.name)}</div><div class="s">${has ? (gold ? '👑 Złota!' : '★'.repeat((isF ? S.fin.best : stS(s.id).best)) ) : 'Jeszcze nie'}</div></div>`;
+  const secs = LVN.map(lv => {
+    if (!lvUnlocked(lv)) return `<h2 class="lvh">🔒 Poziom ${lv}</h2><p class="qsub" style="margin:0">Otworzy się po Wielkim Finale poziomu ${lv - 1}.</p>`;
+    const cells = [...lvStations(lv), stById(kk('fin', lv))].map(s => {
+      const isF = isFin(s.id), st = isF ? finS(s.id) : stS(s.id), has = isF ? st.done > 0 : st.rounds > 0, gold = isF ? st.best === 3 : mastered(s.id);
+      return `<div class="cell ${has ? '' : 'no'} ${has && gold ? 'gold' : ''}"><div class="e">${has ? s.sticker : '❔'}</div><div class="n">${esc(s.name)}</div><div class="s">${has ? (gold ? '👑' : '★'.repeat(st.best)) : '–'}</div></div>`;
+    }).join('');
+    const dip = finS(kk('fin', lv)).done ? `<button class="big blue dipbtn" data-lv="${lv}" style="margin-top:10px">📜 Dyplom – poziom ${lv}</button>` : '';
+    return `<h2 class="lvh">${LVMEDAL[lv]} Poziom ${lv}</h2><div class="album">${cells}</div>${dip}`;
   }).join('');
-  const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="hello grow">📒 Naklejki</span><span class="pill">⭐ ${S.stars}</span></div>
-    <div class="album">${cells}</div>${S.fin.done ? '<button class="big blue" id="dip" style="margin-top:16px">📜 Mój dyplom</button>' : ''}`);
+  const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="hello grow" style="white-space:nowrap">📒 Naklejki</span><span class="pill">⭐ ${S.stars}</span></div>${secs}`);
   el.querySelector('#home').onclick = () => go({ scr: 'map' });
-  const dp = el.querySelector('#dip'); if (dp) dp.onclick = () => go({ scr: 'diploma' });
+  el.querySelectorAll('.dipbtn').forEach(b => b.onclick = () => go({ scr: 'diploma', lv: +b.dataset.lv }));
 }
-function rDiploma() {
+function rDiploma(c) {
+  const lv = (c && c.lv) || 1;
   const d = new Date().toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
   const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="grow"></span></div>
     <div class="dip"><div style="width:110px;margin:0 auto">${emblem('pl')}</div><h1>DYPLOM</h1><p>otrzymuje</p><div class="who">${nm()}</div>
-    <p>${g('Mistrz', 'Mistrzyni')} Wiedzy o Polsce 🏆</p><p>Zebrane gwiazdki: ⭐ ${S.stars}</p><p style="font-size:16px;font-weight:600">${d}</p></div>
+    <p>${g('Mistrz', 'Mistrzyni')} Wiedzy o Polsce 🏆</p><p class="lvd">${LVMEDAL[lv]} Poziom ${lv}</p><p>Zebrane gwiazdki: ⭐ ${S.stars}</p><p style="font-size:16px;font-weight:600">${d}</p></div>
     <div class="row" style="align-items:center;justify-content:center">${spk()}</div>`);
-  bindSpeak(el, `Dyplom otrzymuje ${S.name}. ${g('Mistrz', 'Mistrzyni')} wiedzy o Polsce! Gratulacje!`);
+  bindSpeak(el, `Dyplom otrzymuje ${S.name}. ${g('Mistrz', 'Mistrzyni')} wiedzy o Polsce, poziom ${['', 'pierwszy', 'drugi', 'trzeci'][lv]}! Gratulacje!`);
   el.querySelector('#home').onclick = () => go({ scr: 'map' });
   confetti(60);
 }
@@ -497,19 +547,23 @@ function parentGate() {
   d.querySelectorAll('[data-v]').forEach(x => x.onclick = () => { if (+x.dataset.v === ok) go({ scr: 'parent' }); else { closeSheet(); toast('To miejsce dla rodzica 🙂'); } });
 }
 function rParent(c) {
-  const rows = STATIONS.map(s => {
-    const st = stS(s.id), k = st.known.length, n = s.q.length;
-    const wr = st.wrong.map(id => QMAP[id] ? `<div class="wr">• ${esc(QMAP[id].q.q)}</div>` : '').join('');
-    return `<div class="st"><b>${s.icon} ${esc(s.name)}</b> <span class="small">– umie ${k}/${n}, rund: ${st.rounds}</span><div class="bar"><b style="width:${Math.round(k / n * 100)}%"></b></div>${wr ? `<div class="small" style="margin-top:4px">Do powtórki:</div>${wr}` : ''}</div>`;
+  const secs = LVN.filter(lv => lvUnlocked(lv)).map(lv => {
+    const rows = lvStations(lv).map(s => {
+      const st = stS(s.id), k = st.known.length, n = s.q.length;
+      const wr = st.wrong.map(id => QMAP[id] ? `<div class="wr">• ${esc(QMAP[id].q.q)}</div>` : '').join('');
+      return `<div class="st"><b>${s.icon} ${esc(s.name)}</b> <span class="small">– umie ${k}/${n}, rund: ${st.rounds}</span><div class="bar"><b style="width:${Math.round(k / n * 100)}%"></b></div>${wr ? `<div class="small" style="margin-top:4px">Do powtórki:</div>${wr}` : ''}</div>`;
+    }).join('');
+    const f = finS(kk('fin', lv));
+    return `<h2>${LVMEDAL[lv]} Poziom ${lv}</h2>${rows}<div class="st"><b>🏆 Wielki Finał</b> <span class="small">– rozegrany ${f.done}×, najlepiej ${f.best}/3 ★</span></div>`;
   }).join('');
   const el = screen(`<div class="top"><button class="ibtn" id="home" aria-label="Mapa">🏠</button><span class="hello grow">Panel rodzica</span></div>
-    <div class="par"><h2>Postępy</h2>${rows}<div class="st"><b>🏆 Wielki Finał</b> <span class="small">– rozegrany ${S.fin.done}×, najlepiej ${S.fin.best}/3 ★</span></div>
+    <div class="par">${secs}
     <h2>Ustawienia</h2>
     <button class="tog" id="name">Imię: ${nm()} ${S.sex === 'f' ? '👧' : '👦'} <b>Zmień</b></button>
     <button class="tog" id="sfx">Dźwięki (dzyń przy odpowiedzi) <b class="${S.sfx ? 'on' : ''}">${S.sfx ? 'WŁ' : 'WYŁ'}</b></button>
-    <button class="tog" id="all">Odblokuj wszystkie przystanki <b class="${S.all ? 'on' : ''}">${S.all ? 'WŁ' : 'WYŁ'}</b></button>
+    <button class="tog" id="all">Odblokuj wszystkie przystanki i poziomy <b class="${S.all ? 'on' : ''}">${S.all ? 'WŁ' : 'WYŁ'}</b></button>
     <p class="small">Lektor: dziecko klika 🔊 przy pytaniu, karcie lub podpowiedzi. Postęp zapisuje się sam w tym telefonie i przeglądarce – po zamknięciu gra wraca do tego samego miejsca.</p>
-    <p class="small">Każda runda to 5 pytań (finał: 10). Pytania z błędem wracają w następnych rundach. Złota korona 👑 = wszystkie pytania z przystanku zaliczone za pierwszym razem.</p>
+    <p class="small">Każda runda to 5 pytań (finał: 10). Pytania z błędem wracają w następnych rundach. Złota korona 👑 = wszystkie pytania z przystanku zaliczone za pierwszym razem. Poziom 2 i 3 otwierają się po Wielkim Finale poprzedniego poziomu.</p>
     <button class="big danger" id="reset" style="margin-top:10px">Zacznij od nowa</button></div>`);
   el.querySelector('#home').onclick = () => go({ scr: 'map' });
   el.querySelector('#name').onclick = () => go({ scr: 'intro', edit: true });
@@ -529,19 +583,22 @@ function boot() {
   if (c.scr === 'quiz' || c.scr === 'learn') {
     const s = stById(c.sid);
     if (!s) { S.cur = { scr: 'map' }; return render(); }
+    S.lv = s.lv;
     const r = roundOf(c.sid);
     const where = c.scr === 'quiz' && r ? `pytanie ${Math.min(r.i + (r.solved ? 2 : 1), r.ids.length)} z ${r.ids.length}` : 'karty „Poznaj”';
     S.cur = { scr: 'map' }; render();
-    const d = sheet('neu', `<h3>Witaj z powrotem, ${nm()}! 👋</h3><div class="fact">${spk('sm')}<span>${g('Skończyłeś', 'Skończyłaś')} tutaj: ${s.icon} ${esc(s.name)}, ${where}.</span></div>
+    const d = sheet('neu', `<h3>Witaj z powrotem, ${nm()}! 👋</h3><div class="fact">${spk('sm')}<span>${g('Skończyłeś', 'Skończyłaś')} tutaj: ${s.icon} ${esc(s.name)}${s.lv > 1 ? ` (poziom ${s.lv})` : ''}, ${where}.</span></div>
       <div class="list"><button class="big" id="cont">▶ Graj dalej</button><button class="big alt" id="tomap">🗺️ Mapa</button></div>`, true);
     bindSpeak(d, `Witaj z powrotem, ${S.name}! ${g('Skończyłeś', 'Skończyłaś')} tutaj: ${s.name}.`);
     d.querySelector('#cont').onclick = () => go(c);
     d.querySelector('#tomap').onclick = () => { closeSheet(); save(); };
     return;
   }
-  if (c.scr === 'end' || c.scr === 'parent') S.cur = { scr: 'map' };
+  if (c.scr === 'end' || c.scr === 'parent' || c.scr === 'diploma') S.cur = { scr: 'map' };
+  if (!S.fins) S.fins = {};
+  if (!S.lv || !lvUnlocked(S.lv)) S.lv = 1;
   render();
   if (S.cur.scr === 'map' && S.stars > 0) toast(`Witaj z powrotem, ${S.name}! 👋`);
 }
-window.__T = { get S() { return S; }, get Q() { return Q; }, QMAP, STATIONS, reset() { S = fresh(); save(); } };
+window.__T = { get S() { return S; }, get Q() { return Q; }, go, QMAP, STATIONS, LEVELS, stById, mastered, kk, reset() { S = fresh(); save(); } };
 boot();

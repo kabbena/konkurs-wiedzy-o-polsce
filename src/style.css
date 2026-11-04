@@ -190,3 +190,29 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;paddin
 .intro .qsub{font-size:15px}
 .intro .logo svg{width:70px}
 .sexrow .opt{min-height:84px}
+.lvtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 2px}
+.lvtab{background:var(--card);box-shadow:var(--shadow);border-radius:16px;padding:8px 4px;font-weight:800;font-size:16px;border:3px solid transparent;white-space:nowrap}
+.lvtab.on.l1{border-color:#c07a3a;background:#f7e2cc;color:#5a3412}
+.lvtab.on.l2{border-color:#8a96a8;background:#e6eaf0;color:#2f3a4c}
+.lvtab.on.l3{border-color:#d4a017;background:#fff1c2;color:#5a4300}
+.lvtab.locked{opacity:.55}
+.lvh{margin:18px 0 6px;font-size:22px;font-weight:800}
+.album{grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.album .cell{padding:8px 2px;border-radius:16px}
+.album .cell .e{font-size:38px}
+.album .cell .n{font-size:12px;line-height:1.05;min-height:26px}
+.album .cell .s{font-size:12px}
+.dip .lvd{font-size:24px;font-weight:800}
+.match .opt .mx{font-size:16px;line-height:1.1}
+.lvtab{display:flex;flex-direction:column;align-items:center;gap:0;font-size:14px;line-height:1.1;padding:6px 2px;min-width:0}
+.lvtab .md{font-size:20px}
+.order .tiles,.order .slots{grid-template-columns:repeat(3,minmax(0,1fr))}
+.order .opt{font-size:16px;overflow-wrap:anywhere;hyphens:auto;padding:8px 4px}
+.grid,.match,.tf{grid-template-columns:repeat(2,minmax(0,1fr))}
+.opt{min-width:0;overflow-wrap:anywhere}
+.opt{overflow-wrap:normal;hyphens:manual}
+.order .opt{overflow-wrap:normal;hyphens:manual;font-size:clamp(12px,3.7vw,17px);padding:8px 3px}
+.match .opt{font-size:clamp(15px,5vw,22px);padding:8px 4px}
+.match .opt .mx{font-size:clamp(13px,4.2vw,16px)}
+.grid .opt{font-size:clamp(16px,5.4vw,22px)}
+.list .opt{font-size:clamp(17px,5.6vw,22px)}

@@ -1,12 +1,17 @@
 // Static checks of the question data.
 const fs = require('fs');
-const src = ['geo.js', 'data.js'].map(f => fs.readFileSync(__dirname + '/../src/' + f, 'utf8')).join('\n');
-const { GEO, STATIONS, MAP_LABELS } = new Function(src + '; return {GEO, STATIONS, MAP_LABELS};')();
+const src = ['geo.js', 'data.js', 'data2.js'].map(f => fs.readFileSync(__dirname + '/../src/' + f, 'utf8')).join('\n');
+const { GEO, STATIONS, MAP_LABELS, LEVELS } = new Function(src + '; return {GEO, STATIONS, MAP_LABELS, LEVELS};')();
 const errs = [], warn = [], ids = new Set();
 const VIS = ['flag:pl', 'flag:mc', 'flag:fr', 'flag:de', 'emblem:pl', 'emblem:blue', 'emblem:yellow', 'emblem:nocrown', 'stork', 'map:labels'];
 const chkVis = (s, id) => { const e = String(s).split('|')[0]; if (e[0] === '#' && !VIS.includes(e.slice(1))) errs.push(`${id}: bad visual ${e}`); };
 let n = 0;
-for (const s of STATIONS) {
+const ALL = [...STATIONS.map(s => ({ ...s, lv: 1 }))];
+for (const lv of [2, 3]) for (const s of STATIONS) { if (!LEVELS[lv][s.id]) { errs.push(`level ${lv} missing ${s.id}`); continue; } ALL.push({ id: s.id + '@' + lv, lv, cards: LEVELS[lv][s.id].cards, q: LEVELS[lv][s.id].q }); }
+const perLv = {};
+for (const s of ALL) {
+  perLv[s.lv] = (perLv[s.lv] || 0) + s.q.length;
+  const types = new Set(s.q.map(q => q.t)); if (types.size < 3) warn.push(`${s.id}: only types ${[...types]}`);
   if (!s.cards || s.cards.length < 3) errs.push(`${s.id}: few cards`);
   s.cards.forEach(c => { if (c.v && !VIS.includes(c.v)) errs.push(`${s.id}: card visual ${c.v}`); if (c.s.split(' ').length > 16) warn.push(`${s.id} card long: ${c.s}`); });
   if (s.q.length < 12) errs.push(`${s.id}: only ${s.q.length} questions`);
@@ -38,7 +43,7 @@ for (const s of STATIONS) {
 // every map point inside the drawing
 for (const [k, [x, y]] of Object.entries(GEO.pl.points)) if (x < 10 || x > GEO.pl.w - 10 || y < 10 || y > GEO.pl.h - 10) errs.push('point near edge ' + k);
 MAP_LABELS.forEach(([k]) => { if (!GEO.pl.points[k]) errs.push('label point ' + k); });
-console.log(`questions: ${n}, stations: ${STATIONS.length}`);
+console.log(`questions: ${n}, per level: ${JSON.stringify(perLv)}`);
 warn.forEach(w => console.log('WARN', w));
 errs.forEach(e => console.log('ERR', e));
 console.log(errs.length ? 'VALIDATION FAILED' : 'VALIDATION OK');

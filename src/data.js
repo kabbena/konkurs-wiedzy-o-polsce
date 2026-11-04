@@ -65,7 +65,7 @@ const STATIONS = [
   ],
   q:[
     {id:'s3a', t:'choice', q:'Co zobaczył Lech w gnieździe?', o:['🦅|Orła','🐉|Smoka','🐻|Niedźwiedzia','🦉|Sowę'], a:0, h:'To biały ptak.', f:'Biały orzeł stał się godłem Polski.'},
-    {id:'s3b', t:'choice', q:'Jakie miasto założył Lech?', o:['🪺|Gniezno','🏰|Kraków','⚓|Gdańsk','🍪|Toruń'], a:0, h:'Nazwa jest podobna do słowa „gniazdo”.', f:'Lech założył Gniezno.'},
+    {id:'s3b', t:'choice', q:'Jakie miasto założył Lech?', o:['🦅|Gniezno','🏰|Kraków','⚓|Gdańsk','🍪|Toruń'], a:0, h:'Nazwa jest podobna do słowa „gniazdo”.', f:'Lech założył Gniezno.'},
     {id:'s3c', t:'choice', q:'Lech, Czech i…', o:['🧔|Rus','🧜‍♀️|Wars','👑|Mieszko','🐉|Krak'], a:0, h:'Krótkie imię na R.', f:'Lech, Czech i Rus to trzej bracia z legendy.'},
     {id:'s3d', t:'choice', q:'Kto mieszkał pod Wawelem?', o:['🐉|Smok','🧜‍♀️|Syrenka','🦄|Jednorożec','🐺|Wilk'], a:0, h:'Ział ogniem!', f:'Pod Wawelem mieszkał Smok Wawelski.'},
     {id:'s3e', t:'choice', q:'Co szewczyk dał smokowi?', o:['🐑|Barana z siarką','🍎|Jabłko','🍰|Tort','🧸|Misia'], a:0, h:'To zwierzę, które robi „bee”.', f:'Smok zjadł barana z siarką i pił wodę z Wisły.'},
@@ -182,10 +182,10 @@ const STATIONS = [
   q:[
     {id:'s7a', t:'choice', q:'Wawel jest w…', o:['🏰|Krakowie','⚓|Gdańsku','🍪|Toruniu','🐐|Poznaniu'], a:0, h:'Pod nim mieszkał smok.', f:'Wawel to zamek w Krakowie.'},
     {id:'s7b', t:'choice', q:'Jak ma na imię dzwon na Wawelu?', o:['🔔|Zygmunt','🌳|Bartek','🐶|Reksio','🌞|Mikołaj'], a:0, h:'Zaczyna się na Z.', f:'Dzwon Zygmunt bije w ważne święta.'},
-    {id:'s7c', t:'choice', q:'Pierwsza stolica Polski to…', o:['🪺|Gniezno','🏛️|Warszawa','🍪|Toruń','⛰️|Zakopane'], a:0, h:'Założył je Lech.', f:'Gniezno było pierwszą stolicą.'},
+    {id:'s7c', t:'choice', q:'Pierwsza stolica Polski to…', o:['🦅|Gniezno','🏛️|Warszawa','🍪|Toruń','⛰️|Zakopane'], a:0, h:'Założył je Lech.', f:'Gniezno było pierwszą stolicą.'},
     {id:'s7d', t:'choice', q:'Z czego słynie Toruń?', o:['🍪|Z pierników','🧀|Z oscypków','🍕|Z pizzy','🍩|Z pączków'], a:0, h:'Słodkie, korzenne ciastka.', f:'Toruńskie pierniki są słynne.'},
     {id:'s7e', t:'choice', q:'Gdzie trykają się koziołki?', o:['🐐|W Poznaniu','🏰|W Krakowie','⚓|W Gdańsku','🍪|W Toruniu'], a:0, h:'To miasto na P.', f:'Koziołki trykają się w południe na ratuszu.'},
-    {id:'s7f', t:'choice', q:'Gdzie jest Pałac Kultury?', o:['🏛️|W Warszawie','🏰|W Krakowie','🪺|W Gnieźnie','🧱|W Malborku'], a:0, h:'W stolicy.', f:'Pałac Kultury jest w Warszawie.'},
+    {id:'s7f', t:'choice', q:'Gdzie jest Pałac Kultury?', o:['🏛️|W Warszawie','🏰|W Krakowie','🦅|W Gnieźnie','🧱|W Malborku'], a:0, h:'W stolicy.', f:'Pałac Kultury jest w Warszawie.'},
     {id:'s7g', t:'choice', q:'Z czego jest zamek w Malborku?', o:['🧱|Z cegły','🍬|Z cukierków','🧊|Z lodu','📦|Z kartonu'], a:0, h:'Czerwone klocki.', f:'To wielki zamek z czerwonej cegły.'},
     {id:'s7h', t:'map', q:'Gdzie jest Toruń?', o:['torun','krakow','szczecin','lublin'], a:0, h:'Toruń jest nad Wisłą, bliżej morza.', f:'Toruń leży nad Wisłą.'},
     {id:'s7i', t:'map', q:'Gdzie jest Zakopane?', o:['zakopane','gdansk','szczecin','bialystok'], a:0, h:'Zakopane jest w górach, na dole mapy.', f:'Zakopane leży pod Tatrami.'},

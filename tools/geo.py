@@ -113,6 +113,8 @@ P = {
     'tatry': (49.23, 20.0), 'baltyk': (54.95, 17.2), 'mazury': (53.8, 21.6),
     'srodek': (52.05, 19.2), 'bialowieza': (52.70, 23.85), 'malbork': (54.04, 19.03),
     'wieliczka': (49.99, 20.06), 'zachod': (52.3, 15.3),
+    'odra_pt': (51.80, 15.71), 'wisla_pt': (52.55, 19.70), 'bieszczady': (49.25, 22.45), 'sudety': (50.74, 15.74),
+    'hel': (54.62, 18.78), 'czestochowa': (50.81, 19.12), 'katowice': (50.26, 19.02), 'rzeszow': (50.04, 22.0), 'olsztyn': (53.78, 20.49),
 }
 points = {n: [round(v, 1) for v in pr(lon, lat)] for n, (lat, lon) in P.items()}
 wisla = [(49.61, 19.0), (49.95, 19.45), (50.06, 19.94), (50.25, 20.8), (50.68, 21.75), (51.0, 21.8),
@@ -131,7 +133,7 @@ ke = 400 / (xs[1] - xs[0])
 pe = Proj(52, -11, 71, ke, 0, 0)
 EH = int(pe(0, 34.5)[1])
 ebbox = (-12, 34, 43, 72)
-cand = ['PL', 'FR', 'ES', 'IT']
+cand = ['PL', 'FR', 'ES', 'IT', 'DE', 'UA', 'GB']
 eu_other = ''.join(path_of(polys(f), pe, 1.3, ebbox, (-5, -5, 405, EH + 5)) for c, f in by_iso.items() if c not in cand)
 eu_c = {c: path_of(polys(by_iso[c]), pe, 0.8, ebbox, (-5, -5, 405, EH + 5)) for c in cand}
 
