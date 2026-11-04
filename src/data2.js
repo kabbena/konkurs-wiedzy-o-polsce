@@ -84,7 +84,7 @@ s4: { cards:[
     {id:'s4_2c', t:'choice', q:'Kto napisał o krasnoludkach?', o:['🧸|Maria Konopnicka','🧪|Maria Skłodowska','🏔️|Wanda Rutkiewicz','🥕|Jan Brzechwa'], a:0, h:'Ma na imię Maria.', f:'„O krasnoludkach i sierotce Marysi” – Konopnicka.'},
     {id:'s4_2d', t:'choice', q:'Kto napisał operę „Halka”?', o:['🎶|Stanisław Moniuszko','🎨|Jan Matejko','📚|Henryk Sienkiewicz','🚀|Hermaszewski'], a:0, h:'Ma na imię Stanisław.', f:'Moniuszko to ojciec polskiej opery.'},
     {id:'s4_2e', t:'choice', q:'Kim był Adam Małysz?', o:['🎿|Skoczkiem narciarskim','🎨|Malarzem','👑|Królem','✈️|Pilotem'], a:0, h:'Skakał na nartach.', f:'Adam Małysz to słynny skoczek.'},
-    {id:'s4_2f', t:'choice', q:'Kto weszła na Mount Everest?', o:['🏔️|Wanda Rutkiewicz','🧸|Maria Konopnicka','👑|Królowa Jadwiga','🧪|Maria Curie'], a:0, h:'Ma na imię Wanda.', f:'Wanda Rutkiewicz – pierwsza Europejka na Evereście.'},
+    {id:'s4_2f', t:'choice', q:'Która Polka weszła na Everest?', o:['🏔️|Wanda Rutkiewicz','🧸|Maria Konopnicka','👑|Królowa Jadwiga','🧪|Maria Curie'], a:0, h:'Ma na imię Wanda.', f:'Wanda Rutkiewicz – pierwsza Europejka na Evereście.'},
     {id:'s4_2g', t:'choice', q:'Co odkryła Maria Skłodowska-Curie?', o:['🧪|Polon i rad','🥇|Złoto i srebro','🧂|Sól i cukier','💧|Wodę'], a:0, h:'Jeden ma nazwę od Polski.', f:'Polon nazwała na cześć Polski.'},
     {id:'s4_2h', t:'choice', q:'Gdzie jest serce Chopina?', o:['⛪|W kościele w Warszawie','🗼|W Paryżu','🏰|Na Wawelu','⚓|W Gdańsku'], a:0, h:'W stolicy Polski.', f:'Serce Chopina jest w kościele Świętego Krzyża.'},
     {id:'s4_2i', t:'choice', q:'Jak nazywał się Jan Paweł II?', o:['⛪|Karol Wojtyła','🎨|Jan Matejko','🎖️|Józef Piłsudski','📖|Adam Mickiewicz'], a:0, h:'Ma na imię Karol.', f:'Karol Wojtyła został papieżem w 1978 roku.'},
@@ -244,7 +244,7 @@ s4: { cards:[
   ], q:[
     {id:'s4_3a', t:'choice', q:'Co wynalazł Łukasiewicz?', o:['🪔|Lampę naftową','📞|Telefon','🚗|Samochód','🚲|Rower'], a:0, h:'Dawała światło.', f:'Lampa naftowa oświetlała domy i szpitale.'},
     {id:'s4_3b', t:'choice', q:'Która poetka dostała Nobla?', o:['📖|Wisława Szymborska','🧸|Maria Konopnicka','🏔️|Wanda Rutkiewicz','👑|Jadwiga'], a:0, h:'Ma na imię Wisława.', f:'Szymborska dostała Nobla w 1996 roku.'},
-    {id:'s4_3c', t:'choice', q:'Kto uratowała wiele dzieci?', o:['🧒|Irena Sendlerowa','🧸|Maria Konopnicka','🏔️|Wanda Rutkiewicz','🧪|Maria Curie'], a:0, h:'Ma na imię Irena.', f:'Irena Sendlerowa ratowała dzieci w czasie wojny.'},
+    {id:'s4_3c', t:'choice', q:'Która Polka uratowała wiele dzieci?', o:['🧒|Irena Sendlerowa','🧸|Maria Konopnicka','🏔️|Wanda Rutkiewicz','🧪|Maria Curie'], a:0, h:'Ma na imię Irena.', f:'Irena Sendlerowa ratowała dzieci w czasie wojny.'},
     {id:'s4_3d', t:'choice', q:'Za co Skłodowska dostała Noble?', o:['🧪|Fizyka i chemia','🎶|Muzyka i malarstwo','⚽|Sport','🗺️|Geografia'], a:0, h:'Pracowała w laboratorium.', f:'Nobel z fizyki i z chemii.'},
     {id:'s4_3e', t:'choice', q:'Kto napisał „Balladynę”?', o:['✍️|Juliusz Słowacki','📖|Adam Mickiewicz','📚|Henryk Sienkiewicz','🚂|Julian Tuwim'], a:0, h:'Ma na imię Juliusz.', f:'Juliusz Słowacki to wielki poeta.'},
     {id:'s4_3f', t:'choice', q:'Kto napisał „Chłopów”?', o:['🌾|Władysław Reymont','🚂|Julian Tuwim','🥕|Jan Brzechwa','🎨|Jan Matejko'], a:0, h:'Dostał za to Nobla.', f:'Reymont dostał Nobla za „Chłopów”.'},
