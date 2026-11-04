@@ -190,28 +190,59 @@ function forSpeech(t) {
     .replace(/\b(\d{1,2}) (stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|Maja|Listopada)/g, (m, d, mo) => (ORD[+d] || d) + ' ' + mo.toLowerCase())
     .replace(/[„”"…]/g, ' ').replace(/\s+/g, ' ').trim();
 }
-let voice = null, speakBtn = null;
+let voice = null, speakBtn = null, speakSeq = 0, uttKeep = [];
+const TTS = { ok: 'speechSynthesis' in window, last: '' };
 function pickVoice() {
-  if (!('speechSynthesis' in window)) return;
-  const vs = speechSynthesis.getVoices();
-  voice = vs.find(v => /^pl/i.test(v.lang) && /google|zosia|natural|online/i.test(v.name)) || vs.find(v => /^pl/i.test(v.lang)) || null;
+  if (!TTS.ok) return;
+  const pl = speechSynthesis.getVoices().filter(v => /^pl/i.test(v.lang));
+  // a voice on the phone itself first: network voices go silent without internet
+  voice = pl.find(v => v.localService) || pl[0] || null;
 }
-if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-let warnedVoice = false;
-function speak(text, btn) {
-  if (!('speechSynthesis' in window)) { toast('Ten telefon nie umie czytać na głos 😕'); return; }
-  const was = speakBtn === btn && speechSynthesis.speaking;
+if (TTS.ok) {
+  pickVoice();
+  try { speechSynthesis.addEventListener('voiceschanged', pickVoice); } catch (e) { speechSynthesis.onvoiceschanged = pickVoice; }
+  // after the screen was off or the app switched, the speech queue can stay stuck: clear it
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch (e) { } } });
+}
+const sentences = t => (t.match(/[^.!?]+[.!?]*/g) || [t]).map(x => x.trim()).filter(Boolean);
+function speak(text, btn, retry) {
+  if (!TTS.ok) { toast('Ten telefon nie umie czytać na głos 😕'); return; }
+  const ss = window.speechSynthesis;
+  if (!retry && speakBtn && speakBtn === btn) { stopSpeak(); return; }   // second tap = stop
+  const busy = ss.speaking || ss.pending;
   stopSpeak();
-  if (was) return;
   if (!voice) pickVoice();
-  if (!voice && !warnedVoice) { warnedVoice = true; toast('Brak polskiego głosu w telefonie – czytam, jak umiem'); }
-  const u = new SpeechSynthesisUtterance(forSpeech(text));
-  u.lang = 'pl-PL'; if (voice) u.voice = voice; u.rate = 0.88; u.pitch = 1.05;
+  const seq = ++speakSeq, useVoice = retry ? null : voice;
+  let started = false;
   speakBtn = btn || null; if (btn) btn.classList.add('on');
-  u.onend = u.onerror = () => { if (btn) btn.classList.remove('on'); if (speakBtn === btn) speakBtn = null; };
-  speechSynthesis.speak(u);
+  const done = () => { if (seq !== speakSeq) return; if (btn) btn.classList.remove('on'); speakBtn = null; };
+  const parts = sentences(forSpeech(text));
+  uttKeep = parts.map((part, k) => {
+    const u = new SpeechSynthesisUtterance(part);
+    u.lang = 'pl-PL'; if (useVoice) u.voice = useVoice; u.rate = 0.88; u.pitch = 1.05;
+    u.onstart = () => { started = true; TTS.last = 'ok'; };
+    if (k === parts.length - 1) u.onend = done;
+    u.onerror = e => {
+      if (seq !== speakSeq || e.error === 'interrupted' || e.error === 'canceled') return;
+      TTS.last = 'błąd: ' + e.error;
+      if (!started && !retry) speak(text, btn, true); else done();
+    };
+    return u;
+  });
+  const go = () => { if (seq !== speakSeq) return; try { ss.resume(); } catch (e) { } uttKeep.forEach(u => ss.speak(u)); };
+  if (busy) setTimeout(go, 120); else go();   // speak() right after cancel() is ignored on some phones
+  setTimeout(() => {
+    if (seq !== speakSeq || started) return;
+    if (!retry) { speak(text, btn, true); return; }
+    done(); TTS.last = 'brak dźwięku';
+    toast('Lektor nie odpowiada. Sprawdź głośność telefonu.');
+  }, 3000);
 }
-function stopSpeak() { try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) { } document.querySelectorAll('.speak.on').forEach(b => b.classList.remove('on')); speakBtn = null; }
+function stopSpeak() {
+  speakSeq++;
+  try { if (TTS.ok && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); } catch (e) { }
+  document.querySelectorAll('.speak.on').forEach(b => b.classList.remove('on')); speakBtn = null;
+}
 let actx = null;
 function beep(kind) {
   if (!S.sfx) return;
@@ -573,6 +604,7 @@ function rParent(c) {
     <div class="par">${secs}
     <h2>Ustawienia</h2>
     <button class="tog" id="name">Imię: ${nm()} ${S.sex === 'f' ? '👧' : '👦'} <b>Zmień</b></button>
+    <button class="tog" id="ttst">🔊 Test lektora <b>Sprawdź</b></button><p class="small" id="ttsinfo" style="margin:-2px 4px 8px"></p>
     <button class="tog" id="sfx">Dźwięki (dzyń przy odpowiedzi) <b class="${S.sfx ? 'on' : ''}">${S.sfx ? 'WŁ' : 'WYŁ'}</b></button>
     <button class="tog" id="all">Odblokuj wszystkie przystanki i poziomy <b class="${S.all ? 'on' : ''}">${S.all ? 'WŁ' : 'WYŁ'}</b></button>
     <p class="small">Lektor: dziecko klika 🔊 przy pytaniu, karcie lub podpowiedzi. Postęp zapisuje się sam w tym telefonie i przeglądarce – po zamknięciu gra wraca do tego samego miejsca.</p>
@@ -580,6 +612,16 @@ function rParent(c) {
     <button class="big danger" id="reset" style="margin-top:10px">Usuń imię i postępy (nowa gra)</button></div>`);
   el.querySelector('#home').onclick = () => go({ scr: 'map' });
   el.querySelector('#name').onclick = () => go({ scr: 'intro', edit: true });
+  el.querySelector('#ttst').onclick = e => {
+    const info = el.querySelector('#ttsinfo');
+    if (!TTS.ok) { info.textContent = 'Ta przeglądarka nie ma syntezy mowy.'; return; }
+    pickVoice();
+    const all = speechSynthesis.getVoices();
+    info.textContent = `Głosy w telefonie: ${all.length}, polski: ${voice ? voice.name + (voice.localService ? ' (w telefonie)' : ' (z internetu)') : 'brak'}. Czytam…`;
+    TTS.last = '';
+    speak('Dzień dobry! Lektor działa.', e.currentTarget);
+    setTimeout(() => { info.textContent += ' Wynik: ' + (TTS.last === 'ok' ? 'działa ✓' : (TTS.last || 'brak odpowiedzi') + '. Sprawdź głośność, tryb cichy i w ustawieniach telefonu „Zamiana tekstu na mowę” (język polski).'); }, 3500);
+  };
   el.querySelector('#sfx').onclick = () => { S.sfx = !S.sfx; save(); render(); };
   el.querySelector('#all').onclick = () => { S.all = !S.all; save(); render(); };
   el.querySelector('#reset').onclick = () => {
