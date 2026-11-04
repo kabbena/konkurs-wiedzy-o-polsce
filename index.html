@@ -986,6 +986,8 @@ function speak(text, btn, retry) {
   const busy = ss.speaking || ss.pending;
   stopSpeak();
   if (!voice) pickVoice();
+  const noPolish = !voice && ss.getVoices().length > 0;
+  if (noPolish && !S.anyVoice) { TTS.last = 'brak polskiego głosu'; toast('W telefonie nie ma polskiego głosu. Rodzic: „Dla rodzica” → Test lektora'); return; }
   const seq = ++speakSeq, useVoice = retry ? null : voice;
   let started = false;
   speakBtn = btn || null; if (btn) btn.classList.add('on');
@@ -993,7 +995,7 @@ function speak(text, btn, retry) {
   const parts = sentences(forSpeech(text));
   uttKeep = parts.map((part, k) => {
     const u = new SpeechSynthesisUtterance(part);
-    u.lang = 'pl-PL'; if (useVoice) u.voice = useVoice; u.rate = 0.88; u.pitch = 1.05;
+    if (!noPolish) u.lang = 'pl-PL'; if (useVoice) u.voice = useVoice; u.rate = 0.88; u.pitch = 1.05;
     u.onstart = () => { started = true; TTS.last = 'ok'; };
     if (k === parts.length - 1) u.onend = done;
     u.onerror = e => {
@@ -1379,6 +1381,7 @@ function rParent(c) {
     <h2>Ustawienia</h2>
     <button class="tog" id="name">Imię: ${nm()} ${S.sex === 'f' ? '👧' : '👦'} <b>Zmień</b></button>
     <button class="tog" id="ttst">🔊 Test lektora <b>Sprawdź</b></button><p class="small" id="ttsinfo" style="margin:-2px 4px 8px"></p>
+    <button class="tog" id="anyv">Gdy brak polskiego głosu, czytaj innym (obcy akcent) <b class="${S.anyVoice ? 'on' : ''}">${S.anyVoice ? 'WŁ' : 'WYŁ'}</b></button>
     <button class="tog" id="sfx">Dźwięki (dzyń przy odpowiedzi) <b class="${S.sfx ? 'on' : ''}">${S.sfx ? 'WŁ' : 'WYŁ'}</b></button>
     <button class="tog" id="all">Odblokuj wszystkie przystanki i poziomy <b class="${S.all ? 'on' : ''}">${S.all ? 'WŁ' : 'WYŁ'}</b></button>
     <p class="small">Lektor: dziecko klika 🔊 przy pytaniu, karcie lub podpowiedzi. Postęp zapisuje się sam w tym telefonie i przeglądarce – po zamknięciu gra wraca do tego samego miejsca.</p>
@@ -1393,9 +1396,18 @@ function rParent(c) {
     const all = speechSynthesis.getVoices();
     info.textContent = `Głosy w telefonie: ${all.length}, polski: ${voice ? voice.name + (voice.localService ? ' (w telefonie)' : ' (z internetu)') : 'brak'}. Czytam…`;
     TTS.last = '';
+    if (!voice && all.length) {
+      const langs = [...new Set(all.map(v => v.lang.slice(0, 2)))].slice(0, 8).join(', ');
+      info.innerHTML = `Głosy w telefonie: ${all.length} (języki: ${esc(langs)}), <b>polskiego brak</b>. Zainstaluj polski głos:<br>
+        <b>Android:</b> Ustawienia → wyszukaj „Zamiana tekstu na mowę” → Preferowany mechanizm: <i>Usługi mowy Google</i> → ⚙️ → Zainstaluj dane głosowe → Polski → pobierz. Na Samsungu: Ustawienia → Zarządzanie ogólne → Zamiana tekstu na mowę.<br>
+        <b>iPhone/iPad:</b> Ustawienia → Dostępność → Treść mówiona → Głosy → Polski → pobierz głos (np. Zosia).<br>
+        Potem zamknij całkiem przeglądarkę i otwórz grę ponownie.`;
+      if (!S.anyVoice) return;
+    }
     speak('Dzień dobry! Lektor działa.', e.currentTarget);
-    setTimeout(() => { info.textContent += ' Wynik: ' + (TTS.last === 'ok' ? 'działa ✓' : (TTS.last || 'brak odpowiedzi') + '. Sprawdź głośność, tryb cichy i w ustawieniach telefonu „Zamiana tekstu na mowę” (język polski).'); }, 3500);
+    setTimeout(() => { info.insertAdjacentText('beforeend', ' Wynik: ' + (TTS.last === 'ok' ? 'działa ✓' : (TTS.last || 'brak odpowiedzi') + '. Sprawdź głośność, tryb cichy i w ustawieniach telefonu „Zamiana tekstu na mowę” (język polski).')); }, 3500);
   };
+  el.querySelector('#anyv').onclick = () => { S.anyVoice = !S.anyVoice; save(); render(); };
   el.querySelector('#sfx').onclick = () => { S.sfx = !S.sfx; save(); render(); };
   el.querySelector('#all').onclick = () => { S.all = !S.all; save(); render(); };
   el.querySelector('#reset').onclick = () => {
